@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime, timezone
 
 # Initialize the SQLAlchemy object
 db = SQLAlchemy()
@@ -33,20 +34,25 @@ class Business(db.Model):
     address = db.Column(db.String(200))
 
     services = db.relationship(
-    "Service",
-    backref="business",
-    lazy=True
-)
+        "Service",
+        backref="business",
+        lazy=True
+    )
     staff_members = db.relationship(
-    "Staff",
-    backref="business",
-    lazy=True
-)
+        "Staff",
+        backref="business",
+        lazy=True
+    )
     customers = db.relationship(
-    "Customer",
-    backref="business",
-    lazy=True
-)
+        "Customer",
+        backref="business",
+        lazy=True
+    )
+    appointments = db.relationship(
+        "Appointment",
+        backref="business",
+        lazy=True
+    )
 
     def __repr__(self):
         return f"<Business {self.name}>"
@@ -63,11 +69,17 @@ class Service(db.Model):
         nullable=False
     )
 
+    
+
     name = db.Column(db.String(120), nullable=False)
     description = db.Column(db.String(300))
     duration_minutes = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Numeric(10, 2), nullable=False)
-
+    appointments = db.relationship(
+        "Appointment",
+        backref="service",
+        lazy=True
+    )
     def __repr__(self):
         return f"<Service {self.name}>"
 
@@ -92,6 +104,11 @@ class Staff(db.Model):
         secondary=staff_services,
         backref="staff_members"
     )
+    appointments = db.relationship(
+        "Appointment",
+        backref="staff",
+        lazy=True
+    )
 
     def __repr__(self):
         return f"<Staff {self.name}>"
@@ -112,5 +129,76 @@ class Customer(db.Model):
     email = db.Column(db.String(120), nullable = False)
     phone = db.Column(db.String(30))
 
+    appointments = db.relationship(
+        "Appointment",
+        backref="customer",
+        lazy=True
+    )
     def __repr__(self):
         return f"<Customer {self.name}>"
+
+
+class Appointment(db.Model):
+    __tablename__ = "appointments"
+
+    __table_args__ = (
+    db.CheckConstraint(
+        "status IN ('booked', 'cancelled', 'completed', 'no_show')",
+        name="check_appointment_status"
+    ),
+    db.CheckConstraint(
+        "end_time > start_time",
+        name="check_appointment_times"
+    ),
+)
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    business_id = db.Column(
+        db.Integer,
+        db.ForeignKey("businesses.id"),
+        nullable=False
+    )
+
+    customer_id = db.Column(
+        db.Integer,
+        db.ForeignKey("customers.id"),
+        nullable=False
+    )
+
+    staff_id = db.Column(
+        db.Integer,
+        db.ForeignKey("staff.id"),
+        nullable=False
+    )
+
+    service_id = db.Column(
+        db.Integer,
+        db.ForeignKey("services.id"),
+        nullable=False
+    )
+
+    start_time = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False
+    )
+
+    end_time = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False
+    )
+
+    status = db.Column(
+        db.String(20),
+        nullable=False,
+        default="booked"
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    def __repr__(self):
+        return f"<Appointment {self.id} - {self.status}>"
